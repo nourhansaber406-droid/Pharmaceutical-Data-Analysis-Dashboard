@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Catalog Intelligence — Ingredient Relationship Mapping</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#12141b;
+    --panel:#1a1d27;
+    --panel-2:#20242f;
+    --line:#2c3140;
+    --text:#eef0f4;
+    --muted:#8892a4;
+    --gold:#d4a24c;
+    --gold-soft:#8a6a34;
+    --teal:#4f9d92;
+    --teal-soft:#2c5750;
+    --coral:#c96a55;
+    --good:#5fae7f;
+    --warn:#c9835a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);}
+  body{
+    font-family:'Inter', sans-serif;
+    padding:0 0 70px;
+  }
+  .wrap{max-width:1220px;margin:0 auto;padding:0 22px;}
+
+  .hero{
+    border-bottom:1px solid var(--line);
+    padding:56px 0 40px;
+    background:
+      radial-gradient(600px 260px at 15% -10%, rgba(212,162,76,0.10), transparent),
+      radial-gradient(500px 240px at 90% 0%, rgba(79,157,146,0.10), transparent);
+  }
+  .hero .kicker{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:14px;
+  }
+  .hero h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:38px;
+    font-weight:600;
+    line-height:1.2;
+    margin:0 0 14px;
+    max-width:780px;
+  }
+  .hero p{
+    color:var(--muted);
+    font-size:15px;
+    line-height:1.6;
+    max-width:640px;
+    margin:0;
+  }
+
+  .kpirow{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+    margin-top:34px;
+  }
+  .kpi{
+    background:var(--panel);
+    padding:22px 20px;
+  }
+  .kpi .num{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:28px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .kpi .num span{color:var(--gold);}
+  .kpi .lbl{font-size:12.5px;color:var(--muted);margin-top:6px;letter-spacing:.2px;}
+
+  section{padding:46px 0;border-bottom:1px solid var(--line);}
+  section:last-of-type{border-bottom:none;}
+  .section-head{margin-bottom:22px;max-width:680px;}
+  .section-head .tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;color:var(--teal);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;
+  }
+  .section-head h2{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:22px;font-weight:600;margin:0 0 8px;
+  }
+  .section-head p{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px;
+  }
+
+  .row2{display:grid;grid-template-columns:1.15fr 1fr;gap:16px;}
+  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+
+  canvas{max-height:300px;}
+
+  #network{width:100%;height:auto;display:block;}
+  .net-node circle{fill:var(--panel-2);stroke:var(--gold);stroke-width:1.4;}
+  .net-node text{fill:var(--text);font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .net-edge{stroke:var(--teal);opacity:.35;}
+
+  .hier-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:12.5px;}
+  .hier-row .bar-track{flex:1;background:var(--panel-2);border-radius:5px;height:16px;overflow:hidden;}
+  .hier-row .bar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--teal-soft),var(--teal));}
+  .hier-row .lbl{width:270px;color:var(--muted);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hier-row .val{width:44px;text-align:left;font-family:'JetBrains Mono',monospace;color:var(--text);flex-shrink:0;}
+
+  .funnel-item{
+    display:grid;
+    grid-template-columns:210px 1fr 60px;
+    align-items:center;
+    gap:14px;
+    margin-bottom:12px;
+    font-size:13px;
+  }
+  .funnel-item .stage{color:var(--muted);}
+  .funnel-item .track{background:var(--panel-2);border-radius:6px;height:20px;overflow:hidden;}
+  .funnel-item .fill{height:100%;background:linear-gradient(90deg,var(--gold-soft),var(--gold));}
+  .funnel-item .pct{font-family:'JetBrains Mono',monospace;text-align:left;color:var(--text);}
+
+  footer{
+    max-width:1220px;margin:40px auto 0;padding:0 22px;
+    color:var(--muted);font-size:12px;line-height:1.6;
+  }
+  footer .note{
+    border-top:1px solid var(--line);
+    padding-top:18px;
+    margin-top:8px;
+  }
+
+  @media (max-width:880px){
+    .kpirow{grid-template-columns:repeat(2,1fr);}
+    .row2,.row3{grid-template-columns:1fr;}
+    .hero h1{font-size:28px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="kicker">Personal Project · Data Modeling</div>
+    <h1>Mapping an unstructured pharmacy catalog into a reusable ingredient knowledge graph</h1>
+    <p>A working sample of a larger data project: turning a flat product spreadsheet into a queryable model — products, ingredients, and the relationships between them — as groundwork for AI-assisted content generation at scale.</p>
+
+    <div class="kpirow">
+      <div class="kpi"><div class="num">~<span>13K</span></div><div class="lbl">catalog items processed</div></div>
+      <div class="kpi"><div class="num">~<span>3.9K</span></div><div class="lbl">distinct ingredients extracted</div></div>
+      <div class="kpi"><div class="num"><span>84%</span></div><div class="lbl">items with a mapped ingredient</div></div>
+      <div class="kpi"><div class="num"><span>~840K</span></div><div class="lbl">product knowledge base entries</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <div class="section-head">
+      <div class="tag">01 · Relationship layer</div>
+      <h2>From a flat "ingredient" text field to a real graph</h2>
+      <p>The source data stored ingredients as free text inside each product row — no structure, no reuse. The first modeling step splits that into a proper many-to-many relationship, then surfaces which ingredients most frequently co-occur in the same formula.</p>
+    </div>
+    <div class="panel">
+      <svg id="network" viewBox="0 0 520 520"></svg>
+    </div>
+  </section>
+
+  <section>
+    <div class="row2">
+      <div>
+        <div class="section-head">
+          <div class="tag">02 · Category structure</div>
+          <h2>Where the catalog concentrates</h2>
+          <p>A two-level breakdown (category → subcategory) that will later drive different content rules per domain — a supplement is not classified the same way as a prescription drug.</p>
+        </div>
+        <div class="panel" id="hierarchyPanel"></div>
+      </div>
+      <div>
+        <div class="section-head">
+          <div class="tag">03 · Frequency</div>
+          <h2>Most reused ingredients</h2>
+          <p>A small set of ingredients account for a disproportionate share of the catalog — exactly the kind of pattern that makes a reusable knowledge layer worth building.</p>
+        </div>
+        <div class="panel"><canvas id="chartIngredients"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="row2">
+      <div>
+        <div class="section-head">
+          <div class="tag">04 · Category mix</div>
+          <h2>Product domains at a glance</h2>
+        </div>
+        <div class="panel"><canvas id="chartCategories"></canvas></div>
+      </div>
+      <div>
+        <div class="section-head">
+          <div class="tag">05 · Data readiness</div>
+          <h2>Content completeness funnel</h2>
+          <p>Before any writing happens, each item needs to pass through these checks — this funnel is what a triage queue gets built on top of.</p>
+        </div>
+        <div class="panel" id="funnelPanel"></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="note">Figures are approximate and illustrative — category and ingredient labels shown are common industry terms, not tied to any specific dataset or organization. Built as a personal exploration of data modeling for content-generation pipelines.</div>
+</footer>
+
+<script>
+const data = {"total_products": 12956, "total_ingredients": 3870, "has_ingredient": 10864, "no_ingredient": 2092, "content_complete": 10867, "content_incomplete": 2089, "categories": [{"Category": "Clinical Pharmacy Medications", "count": 7868}, {"Category": "Vitamins & Supplements", "count": 2995}, {"Category": "Home & hospital health care", "count": 1875}, {"Category": "Mom & Baby", "count": 184}, {"Category": "Laboratory Products", "count": 4}], "top_ingredients": [{"Ingredient": "Vitamin C", "Product_Count": 912}, {"Ingredient": "Zinc", "Product_Count": 760}, {"Ingredient": "Vitamin B6", "Product_Count": 659}, {"Ingredient": "Vitamin B12", "Product_Count": 644}, {"Ingredient": "Vitamin E", "Product_Count": 618}, {"Ingredient": "Folic Acid", "Product_Count": 422}, {"Ingredient": "Menthol", "Product_Count": 421}, {"Ingredient": "Magnesium", "Product_Count": 419}, {"Ingredient": "Calcium", "Product_Count": 410}, {"Ingredient": "Vitamin B1", "Product_Count": 405}], "coverage_by_category": [{"Category": "Clinical Pharmacy Medications", "total": 7868, "complete": 5897, "pct": 74.9}, {"Category": "Mom & Baby", "total": 184, "complete": 179, "pct": 97.3}, {"Category": "Vitamins & Supplements", "total": 2995, "complete": 2918, "pct": 97.4}, {"Category": "Home & hospital health care", "total": 1875, "complete": 1848, "pct": 98.6}], "hierarchy": [{"Category": "Vitamins & Supplements", "Subcategory": "Supplements By Indication", "count": 1705}, {"Category": "Vitamins & Supplements", "Subcategory": "Supplements By Ingredients", "count": 1289}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Heart, Pressure & Circulation", "count": 1013}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Antibiotics & Anti-Infectives", "count": 884}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Pain, Fever & Inflammation", "count": 874}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Digestive Health & Colon Care", "count": 828}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Brain, Nerves & Mental Health", "count": 781}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Cold, Cough & Allergy", "count": 708}, {"Category": "Home & hospital health care", "Subcategory": "Brace & Support", "count": 580}, {"Category": "Clinical Pharmacy Medications", "Subcategory": "Diabetes & Endocrine", "count": 486}], "funnel": [{"stage": "Total catalog items", "value": 12956}, {"stage": "Ingredient mapped", "value": 10864}, {"stage": "Usage instructions present", "value": 12869}, {"stage": "Full description present", "value": 12758}, {"stage": "Fully content-complete", "value": 10867}], "network": {"nodes": [{"name": "Vitamin C", "x": 260.0, "y": 40.0, "count": 912}, {"name": "Zinc", "x": 355.5, "y": 61.8, "count": 760}, {"name": "Vitamin B6", "x": 432.0, "y": 122.8, "count": 659}, {"name": "Vitamin B12", "x": 474.5, "y": 211.0, "count": 644}, {"name": "Vitamin E", "x": 474.5, "y": 309.0, "count": 618}, {"name": "Folic Acid", "x": 432.0, "y": 397.2, "count": 422}, {"name": "Menthol", "x": 355.5, "y": 458.2, "count": 421}, {"name": "Magnesium", "x": 260.0, "y": 480.0, "count": 419}, {"name": "Calcium", "x": 164.5, "y": 458.2, "count": 410}, {"name": "Vitamin B1", "x": 88.0, "y": 397.2, "count": 405}, {"name": "Vitamin B2", "x": 45.5, "y": 309.0, "count": 361}, {"name": "Iron", "x": 45.5, "y": 211.0, "count": 359}, {"name": "Vitamin D", "x": 88.0, "y": 122.8, "count": 334}, {"name": "Copper", "x": 164.5, "y": 61.8, "count": 331}], "edges": [{"source": "Vitamin B12", "target": "Vitamin B6", "weight": 500}, {"source": "Vitamin C", "target": "Zinc", "weight": 445}, {"source": "Vitamin C", "target": "Vitamin E", "weight": 398}, {"source": "Vitamin B12", "target": "Vitamin C", "weight": 389}, {"source": "Vitamin B1", "target": "Vitamin B6", "weight": 374}, {"source": "Vitamin B6", "target": "Vitamin C", "weight": 370}, {"source": "Vitamin B2", "target": "Vitamin B6", "weight": 334}, {"source": "Vitamin B6", "target": "Zinc", "weight": 326}, {"source": "Vitamin B1", "target": "Vitamin B12", "weight": 325}, {"source": "Folic Acid", "target": "Vitamin B12", "weight": 318}, {"source": "Vitamin B12", "target": "Zinc", "weight": 315}, {"source": "Vitamin B1", "target": "Vitamin B2", "weight": 308}, {"source": "Magnesium", "target": "Zinc", "weight": 305}, {"source": "Vitamin E", "target": "Zinc", "weight": 304}, {"source": "Folic Acid", "target": "Vitamin B6", "weight": 298}, {"source": "Iron", "target": "Vitamin C", "weight": 281}, {"source": "Copper", "target": "Zinc", "weight": 278}, {"source": "Calcium", "target": "Magnesium", "weight": 274}, {"source": "Vitamin B2", "target": "Vitamin C", "weight": 271}, {"source": "Folic Acid", "target": "Vitamin C", "weight": 271}, {"source": "Vitamin B1", "target": "Vitamin C", "weight": 268}, {"source": "Vitamin B12", "target": "Vitamin B2", "weight": 268}, {"source": "Vitamin B6", "target": "Vitamin E", "weight": 267}, {"source": "Calcium", "target": "Zinc", "weight": 261}, {"source": "Iron", "target": "Vitamin B12", "weight": 258}, {"source": "Copper", "target": "Vitamin C", "weight": 242}, {"source": "Iron", "target": "Vitamin B6", "weight": 241}, {"source": "Vitamin B12", "target": "Vitamin E", "weight": 239}, {"source": "Iron", "target": "Zinc", "weight": 238}, {"source": "Vitamin B2", "target": "Zinc", "weight": 223}, {"source": "Vitamin B2", "target": "Vitamin E", "weight": 219}, {"source": "Vitamin B1", "target": "Zinc", "weight": 216}, {"source": "Vitamin B1", "target": "Vitamin E", "weight": 215}, {"source": "Vitamin C", "target": "Vitamin D", "weight": 215}, {"source": "Copper", "target": "Vitamin B6", "weight": 209}, {"source": "Copper", "target": "Vitamin B12", "weight": 207}, {"source": "Magnesium", "target": "Vitamin C", "weight": 204}, {"source": "Folic Acid", "target": "Zinc", "weight": 191}, {"source": "Calcium", "target": "Vitamin C", "weight": 191}, {"source": "Copper", "target": "Iron", "weight": 189}]}};
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#8892a4';
+
+// ---- Network graph (SVG) ----
+const svg = document.getElementById('network');
+const ns = 'http://www.w3.org/2000/svg';
+const nodeByName = {};
+data.network.nodes.forEach(n => nodeByName[n.name] = n);
+
+data.network.edges.forEach(e => {
+  const s = nodeByName[e.source], t = nodeByName[e.target];
+  if(!s || !t) return;
+  const line = document.createElementNS(ns,'line');
+  line.setAttribute('x1', s.x); line.setAttribute('y1', s.y);
+  line.setAttribute('x2', t.x); line.setAttribute('y2', t.y);
+  line.setAttribute('class','net-edge');
+  line.setAttribute('stroke-width', Math.max(0.6, e.weight/120));
+  svg.appendChild(line);
+});
+
+const maxCount = Math.max(...data.network.nodes.map(n=>n.count));
+data.network.nodes.forEach(n => {
+  const g = document.createElementNS(ns,'g');
+  g.setAttribute('class','net-node');
+  const r = 8 + (n.count/maxCount)*14;
+  const circle = document.createElementNS(ns,'circle');
+  circle.setAttribute('cx', n.x); circle.setAttribute('cy', n.y); circle.setAttribute('r', r);
+  g.appendChild(circle);
+  const text = document.createElementNS(ns,'text');
+  text.setAttribute('x', n.x + (n.x>260? r+6 : -(r+6)));
+  text.setAttribute('y', n.y + 3);
+  text.setAttribute('text-anchor', n.x > 260 ? 'start' : 'end');
+  text.textContent = n.name;
+  g.appendChild(text);
+  svg.appendChild(g);
+});
+
+// ---- Hierarchy bars ----
+const hierPanel = document.getElementById('hierarchyPanel');
+const maxHier = Math.max(...data.hierarchy.map(h=>h.count));
+data.hierarchy.slice(0,10).forEach(h => {
+  const row = document.createElement('div');
+  row.className = 'hier-row';
+  row.innerHTML = `
+    <div class="lbl">${h.Subcategory}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(h.count/maxHier*100).toFixed(0)}%"></div></div>
+    <div class="val">${h.count}</div>
+  `;
+  hierPanel.appendChild(row);
+});
+
+// ---- Funnel ----
+const funnelPanel = document.getElementById('funnelPanel');
+const funnelMax = data.funnel[0].value;
+data.funnel.forEach(f => {
+  const pct = (f.value/funnelMax*100);
+  const row = document.createElement('div');
+  row.className = 'funnel-item';
+  row.innerHTML = `
+    <div class="stage">${f.stage}</div>
+    <div class="track"><div class="fill" style="width:${pct.toFixed(0)}%"></div></div>
+    <div class="pct">${pct.toFixed(0)}%</div>
+  `;
+  funnelPanel.appendChild(row);
+});
+
+// ---- Ingredient frequency chart ----
+new Chart(document.getElementById('chartIngredients'), {
+  type: 'bar',
+  data: {
+    labels: data.top_ingredients.map(i => i.Ingredient),
+    datasets: [{
+      data: data.top_ingredients.map(i => i.Product_Count),
+      backgroundColor: '#d4a24c',
+      borderRadius: 5,
+      barThickness: 16
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#2c3140' } },
+      y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+    }
+  }
+});
+
+// ---- Category chart ----
+new Chart(document.getElementById('chartCategories'), {
+  type: 'doughnut',
+  data: {
+    labels: data.categories.map(c => c.Category),
+    datasets: [{
+      data: data.categories.map(c => c.count),
+      backgroundColor: ['#4f9d92','#d4a24c','#c96a55','#5fae7f','#8892a4'],
+      borderColor: '#1a1d27',
+      borderWidth: 3
+    }]
+  },
+  options: {
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { boxWidth: 10, font: { size: 11 }, padding: 14 }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
